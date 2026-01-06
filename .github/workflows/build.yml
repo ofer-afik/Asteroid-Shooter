@@ -15,47 +15,35 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # Linux system dependencies for curses
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
+      - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libncurses-dev
+          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6
 
-      # Windows curses support
-      - name: Install Windows curses
-        if: runner.os == 'Windows'
+
+      - if: runner.os == 'Windows'
         run: python -m pip install windows-curses
 
-      # Install Python dependencies
-      - name: Install Python dependencies
-        run: |
+      - run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-      # Build executable
-      - name: Build executable
+      - if: runner.os != 'Windows'
         run: |
-          # Linux/macOS uses bash style
-          if [[ "${{ runner.os }}" != "Windows" ]]; then
-            pyinstaller --onefile --name ASTEROID-SHOOTER --hidden-import=curses --hidden-import=_curses --log-level=DEBUG code/game.py
-          else
-            # Windows uses PowerShell style
-            & pyinstaller --onefile --name ASTEROID-SHOOTER --hidden-import=curses --hidden-import=_curses --log-level=DEBUG code/game.py
-          fi
-        shell: bash
+          pyinstaller --onefile --name ASTEROID-SHOOTER --hidden-import=curses --hidden-import=_curses --log-level=DEBUG code/game.py
 
-      # Upload artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          pyinstaller --onefile --name ASTEROID-SHOOTER --hidden-import=curses --hidden-import=_curses --log-level=DEBUG code/game.py
+
+      - uses: actions/upload-artifact@v4
         with:
           name: ASTEROID-SHOOTER-${{ matrix.os }}
           path: dist/
