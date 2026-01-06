@@ -46,7 +46,7 @@ jobs:
             --name ASTEROID-SHOOTER \
             --hidden-import=curses \
             --hidden-import=_curses \
-            --log-level=DEBUG
+            --log-level=DEBUG \
             code/game.py
 
 
