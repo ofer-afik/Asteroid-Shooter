@@ -38,7 +38,10 @@ jobs:
           pyinstaller \
             --onefile \
             --name ASTEROID-SHOOTER \
+            --hidden-import=curses \
+            --hidden-import=_curses \
             code/game.py
+
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
