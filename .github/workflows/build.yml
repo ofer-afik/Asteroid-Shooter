@@ -33,11 +33,11 @@ jobs:
         run: |
           pyinstaller \
             --onefile \
-            --name your-app-name \
-            src/main.py
+            --name ASTEROID-SHOOTER \
+            code/game.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: your-app-${{ matrix.os }}
+          name: ASTEROID-SHOOTER-${{ matrix.os }}
           path: dist/
