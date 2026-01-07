@@ -43,16 +43,18 @@ GAMEOVER = """
  ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝  
 """.splitlines()
 
-asteroidsSymbols = ["@", "#", "%", "&", "0", "Q", "X"]
+asterGraphics = ()
 
 class Coordinate:
-    def __init__(self, x, y):
+    def __init__(self, x, y, xx, yy):
         self.x = x
         self.y = y
+        self.xx = xx
+        self.yy = yy
 
 class Bullet:
     def __init__(self, playerShot):
-        self.pos = Coordinate(playerShot.pos.x, playerShot.pos.y - 1)
+        self.pos = Coordinate(playerShot.pos.x, playerShot.pos.y - 1, playerShot.x, playerShot.y - 1)
         self.symbol = "|"
 
     def move(self, gameWin, asteroids):
@@ -66,8 +68,9 @@ class Bullet:
 
 class Asteroid:
     def __init__(self):
-        self.symbol = random.choice(asteroidsSymbols)
-        self.pos = Coordinate(random.randint(1, 68), 1)
+        self.symbol = random.choice(asterGraphics)
+        randNum = random.randint(1, 68)
+        self.pos = Coordinate(randNum, 1, randNum, 1)
         self.speed = round(random.uniform(0.1, 0.7), 2)
 
     def move(self, gameWin, p1, stdscr, LINES):
@@ -90,7 +93,7 @@ class Player:
         self.name = name
         self.pts = pts
         self.lives = 3
-        self.pos = Coordinate(x, 25)
+        self.pos = Coordinate(x, 25, x, 25)
         self.symbol = "A"
 
     def move_left(self, gameWin):
