@@ -43,18 +43,16 @@ GAMEOVER = """
  ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝  
 """.splitlines()
 
-asterGraphics = ()
+asteroidsSymbols = ["@", "#", "%", "&", "0", "Q", "X"]
 
 class Coordinate:
-    def __init__(self, x, y, xx, yy):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.xx = xx
-        self.yy = yy
 
 class Bullet:
     def __init__(self, playerShot):
-        self.pos = Coordinate(playerShot.pos.x, playerShot.pos.y - 1, playerShot.x, playerShot.y - 1)
+        self.pos = Coordinate(playerShot.pos.x, playerShot.pos.y - 1)
         self.symbol = "|"
 
     def move(self, gameWin, asteroids):
@@ -65,14 +63,11 @@ class Bullet:
         else:
             return False  # Bullet is out of bounds
         return True  # Bullet is still in bounds
-
 class Asteroid:
     def __init__(self):
-        self.symbol = random.choice(asterGraphics)
-        randNum = random.randint(1, 68)
-        self.pos = Coordinate(randNum, 1, randNum, 1)
+        self.symbol = random.choice(asteroidsSymbols)
+        self.pos = Coordinate(random.randint(1, 68), 1)
         self.speed = round(random.uniform(0.1, 0.7), 2)
-
     def move(self, gameWin, p1, stdscr, LINES):
         gameWin.addstr(int(round(self.pos.y, 0)), int(round(self.pos.x, 0)), ' ')  # Clear previous position
         self.pos.y += self.speed  # Move asteroid down
@@ -87,15 +82,13 @@ class Asteroid:
         else:
             return False  # Asteroid is out of bounds
         return True  # Asteroid is still in bounds
-
 class Player:
     def __init__(self, name, pts, x):
         self.name = name
         self.pts = pts
         self.lives = 3
-        self.pos = Coordinate(x, 25, x, 25)
+        self.pos = Coordinate(x, 25)
         self.symbol = "A"
-
     def move_left(self, gameWin):
         gameWin.addstr(self.pos.y, self.pos.x, ' ')  # Clear previous position
         self.pos.x = max(1, self.pos.x - 1) # Update x position with boundary check
@@ -105,8 +98,6 @@ class Player:
         gameWin.addstr(self.pos.y, self.pos.x, ' ')  # Clear previous position
         self.pos.x = min(68, self.pos.x + 1) # Update x position with boundary check
         gameWin.addstr(self.pos.y, self.pos.x, self.symbol)  # Draw player
-
-
 # Game function
 def main(stdscr):
     # Cursor hide
@@ -122,14 +113,12 @@ def main(stdscr):
     last_update = time.monotonic()
     FPS = 30
     LINES, COLS = stdscr.getmaxyx()
-
     # Ensure terminal size is sufficient
     if COLS < 120 or LINES < 30:
         stdscr.addstr(0, 0, "Error: Terminal window too small. Click any key to end.")
         stdscr.refresh()
         stdscr.getch()
         return
-
     # Display title screen
     stdscr.clear()
     for i in range(len(TITLE)):
@@ -140,27 +129,20 @@ def main(stdscr):
     key = stdscr.getch()
     if key == ord('q'):
         return
-
     # Setup before main loop
     stdscr.clear()
     p1 = Player("Player 1", 0, 35)
-
     gameWin = curses.newwin(30, 70, (LINES - 30) // 2, (COLS - 70) // 2)
     gameWin.border()
-
     gameWin.nodelay(True)
     gameWin.keypad(True)
-
     stdscr.refresh()
     gameWin.refresh()
-
     gameWin.addstr(p1.pos.y, p1.pos.x, p1.symbol)  # Draw first player
-
     # Static UI
     stdscr.addstr(LINES // 2 - 13, 2, f"Lives: {p1.lives}")
     stdscr.addstr(LINES // 2 - 11, 2, f"Points: {p1.pts}")
     stdscr.refresh()
-
     # Main game loop
     while True:
         # Get user input and update time
@@ -168,14 +150,12 @@ def main(stdscr):
         cur_key = gameWin.getch()
         if cur_key == ord('q'):
             break
-
         # Check death
         if p1.lives == 0:
             # Remove game window
             gameWin.clear()
             gameWin.refresh()
             del gameWin
-
             # Display game over screen
             stdscr.clear()
             for i in range(len(GAMEOVER)):
@@ -188,8 +168,8 @@ def main(stdscr):
                 end_key = stdscr.getch()
                 if end_key == ord('\n') or end_key == ord('\r'):
                     break
-            break
 
+            break
         # Update player position based on input
         if cur_key == curses.KEY_LEFT or cur_key == ord('a'):
             p1.move_left(gameWin)
@@ -199,7 +179,6 @@ def main(stdscr):
         # Bullet stuff
         if cur_key == ord(' '):
             bullets.append(Bullet(p1))
-
         for bullet in bullets[:]:
             if not bullet.move(gameWin, asteroids):
                 bullets.remove(bullet)
