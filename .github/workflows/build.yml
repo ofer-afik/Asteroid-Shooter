@@ -46,4 +46,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ASTEROID-SHOOTER-${{ matrix.os }}
-          path: dist/
+          path: dist/ASTEROID-SHOOTER${{ runner.os == 'Windows' && '.exe' || '' }}
