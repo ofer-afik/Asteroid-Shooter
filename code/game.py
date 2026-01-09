@@ -43,7 +43,33 @@ GAMEOVER = """
  ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝  
 """.splitlines()
 
-asteroidsSymbols = ["@", "#", "%", "&", "0", "Q", "X"]
+asteroid_symbols = ("@", "%", "&", "0", "Q", "X")
+explode_anim = (("     ", "     ", "  #  ", "     ", "     "), 
+                ("     ", "  #  ", " ### ", "  #  ", "     "),
+                ("     ", "  #  ", "#####", "  #  ", "     "),
+                (" ### ", "#####", "#   #", "#####", " ### "),
+                (" ### ", "#   #", "     ", "#   #", " ### "),
+                ("     ", "     ", "     ", "     ", "     "))
+
+class Explosion:
+    def __init__(self, centerX, centerY):
+        self.centerX = centerX
+        self.centerY = centerY
+        self.cur_frame = 0
+        self.last_update = time.monotonic()
+    
+    def draw(self, gameWin):
+        if self.cur_frame >= len(explode_anim) or self.centerY - 2 < 0 or self.centerY + 2 >= 30 or self.centerX - 2 < 0 or self.centerX + 2 >= 70:
+            explosions.remove(self)
+            return
+        if time.monotonic() - self.last_update < 0.1:
+            return
+        for line in range(5):
+            gameWin.addstr(self.centerY - 2 + line, self.centerX - 2, explode_anim[self.cur_frame][line])
+        self.last_update = time.monotonic()
+        self.cur_frame += 1
+
+explosions = []
 
 class Coordinate:
     def __init__(self, x, y):
@@ -63,9 +89,10 @@ class Bullet:
         else:
             return False  # Bullet is out of bounds
         return True  # Bullet is still in bounds
+
 class Asteroid:
     def __init__(self):
-        self.symbol = random.choice(asteroidsSymbols)
+        self.symbol = random.choice(asteroid_symbols)
         self.pos = Coordinate(random.randint(1, 68), 1)
         self.speed = round(random.uniform(0.1, 0.7), 2)
     def move(self, gameWin, p1, stdscr, LINES):
@@ -76,12 +103,15 @@ class Asteroid:
                 p1.lives -= 1  # Decrease player lives on collision
                 stdscr.addstr(LINES // 2 - 13, 2, f"Lives: {p1.lives}")
                 stdscr.addstr(LINES // 2 - 11, 2, f"Points: {p1.pts}")
+                explosions.append(Explosion(int(round(self.pos.x, 0)), int(round(self.pos.y, 0))))
                 stdscr.refresh()
                 return False  # Asteroid is removed on collision
             gameWin.addstr(int(round(self.pos.y, 0)), int(round(self.pos.x, 0)), self.symbol)  # Draw asteroid
+
         else:
             return False  # Asteroid is out of bounds
         return True  # Asteroid is still in bounds
+
 class Player:
     def __init__(self, name, pts, x):
         self.name = name
@@ -98,6 +128,7 @@ class Player:
         gameWin.addstr(self.pos.y, self.pos.x, ' ')  # Clear previous position
         self.pos.x = min(68, self.pos.x + 1) # Update x position with boundary check
         gameWin.addstr(self.pos.y, self.pos.x, self.symbol)  # Draw player
+
 # Game function
 def main(stdscr):
     # Cursor hide
@@ -113,12 +144,14 @@ def main(stdscr):
     last_update = time.monotonic()
     FPS = 30
     LINES, COLS = stdscr.getmaxyx()
+
     # Ensure terminal size is sufficient
     if COLS < 120 or LINES < 30:
         stdscr.addstr(0, 0, "Error: Terminal window too small. Click any key to end.")
         stdscr.refresh()
         stdscr.getch()
         return
+
     # Display title screen
     stdscr.clear()
     for i in range(len(TITLE)):
@@ -129,6 +162,7 @@ def main(stdscr):
     key = stdscr.getch()
     if key == ord('q'):
         return
+
     # Setup before main loop
     stdscr.clear()
     p1 = Player("Player 1", 0, 35)
@@ -175,7 +209,7 @@ def main(stdscr):
             p1.move_left(gameWin)
         if cur_key == curses.KEY_RIGHT or cur_key == ord('d'):
             p1.move_right(gameWin)
-        
+                
         # Bullet stuff
         if cur_key == ord(' '):
             bullets.append(Bullet(p1))
@@ -199,10 +233,16 @@ def main(stdscr):
                     gameWin.addstr(int(round(asteroid.pos.y, 0)), int(round(asteroid.pos.x, 0)), ' ')  # Clear asteroid
                     bullets.remove(bullet)
                     asteroids.remove(asteroid)
+                    explosions.append(Explosion(int(round(asteroid.pos.x, 0)), int(round(asteroid.pos.y, 0))))
                     p1.pts += 1
                     stdscr.addstr(LINES // 2 - 13, 2, f"Lives: {p1.lives}    ")
                     stdscr.addstr(LINES // 2 - 11, 2, f"Points: {p1.pts}    ")
                     stdscr.refresh()
+                    break  # Exit inner loop to avoid further checks with this bulleti
+        
+        # Update explosions
+        for explosion in explosions[:]:
+            explosion.draw(gameWin)
         
         # Refresh window
         if not cursor_hidden:
