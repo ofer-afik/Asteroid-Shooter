@@ -162,7 +162,7 @@ class Player:
     
     def move_right(self, gameWin):
         gameWin.addstr(self.pos.y, self.pos.x, ' ')  # Clear previous position
-        self.pos.x = min(67, self.pos.x + 1) # Update x position with boundary check
+        self.pos.x = min(68, self.pos.x + 1) # Update x position with boundary check
         gameWin.addstr(self.pos.y, self.pos.x, self.symbol)  # Draw player
 
 
