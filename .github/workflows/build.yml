@@ -33,7 +33,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6 xterm docker.io
+          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6 xterm
 
       - if: runner.os == 'Windows'
         run: python -m pip install windows-curses
