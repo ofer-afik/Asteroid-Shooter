@@ -15,55 +15,64 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # -------------------------------------------------
+      # Checkout
+      # -------------------------------------------------
       - uses: actions/checkout@v4
 
+      # -------------------------------------------------
+      # Python setup
+      # -------------------------------------------------
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # ---------------- Dependencies ----------------
+      # -------------------------------------------------
+      # OS dependencies
+      # -------------------------------------------------
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libncurses6 libncursesw6 libtinfo6 \
-            fuse xterm
+          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6 xterm
 
       - if: runner.os == 'Windows'
         run: python -m pip install windows-curses
 
+      # -------------------------------------------------
+      # Python tooling
+      # -------------------------------------------------
       - run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-      # ---------------- Build game binary ----------------
-      - name: Build game
-        run: |
-          pyinstaller --onefile --name game \
-            --hidden-import=curses \
-            --hidden-import=_curses \
-            code/game.py
+      # -------------------------------------------------
+      # Build game binary (single-line, cross-OS)
+      # -------------------------------------------------
+      - name: Build game binary
+        run: pyinstaller --onefile --name game --hidden-import=curses --hidden-import=_curses code/game.py
 
-      # ==================================================
-      # macOS: .app wrapper
-      # ==================================================
+      # =================================================
+      # macOS: create clickable .app
+      # =================================================
       - if: runner.os == 'macOS'
         name: Build macOS app
         run: |
           APP=ASTEROID-SHOOTER.app
-          mkdir -p $APP/Contents/MacOS
+          mkdir -p "$APP/Contents/MacOS"
 
-          cp dist/game $APP/Contents/MacOS/game
+          cp dist/game "$APP/Contents/MacOS/game"
 
-          cat > $APP/Contents/MacOS/launcher << 'EOF'
+          # Launcher keeps terminal open after game exits
+          cat > "$APP/Contents/MacOS/launcher" << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "$0")" && pwd)"
-          exec open -a Terminal "$DIR/game"
+          exec open -a Terminal bash -c '"$DIR/game"; exec bash'
           EOF
 
-          chmod +x $APP/Contents/MacOS/*
+          chmod +x "$APP/Contents/MacOS/"*
 
-          cat > $APP/Contents/Info.plist << 'EOF'
+          # Minimal Info.plist
+          cat > "$APP/Contents/Info.plist" << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -83,9 +92,9 @@ jobs:
           </plist>
           EOF
 
-      # ==================================================
+      # =================================================
       # Windows: single EXE launcher with embedded game
-      # ==================================================
+      # =================================================
       - if: runner.os == 'Windows'
         name: Build Windows launcher
         shell: pwsh
@@ -93,19 +102,18 @@ jobs:
           @"
           import subprocess, sys, os
 
-          base = os.path.dirname(sys.executable)
+          # Correct path to embedded binary in --onefile mode
+          base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
           game = os.path.join(base, "game.exe")
 
           subprocess.Popen(["cmd", "/k", game])
           "@ | Out-File launcher.py -Encoding utf8
 
-          pyinstaller --onefile --name ASTEROID-SHOOTER `
-            --add-binary "dist/game.exe;." `
-            launcher.py
+          pyinstaller --onefile --name ASTEROID-SHOOTER --add-binary "dist/game.exe;." launcher.py
 
-      # ==================================================
-      # Linux: AppImage
-      # ==================================================
+      # =================================================
+      # Linux: AppImage with robust terminal detection
+      # =================================================
       - if: runner.os == 'Linux'
         name: Build Linux AppImage
         run: |
@@ -115,11 +123,16 @@ jobs:
           cat > AppDir/AppRun << 'EOF'
           #!/bin/bash
           HERE="$(dirname "$(readlink -f "$0")")"
-          if command -v x-terminal-emulator >/dev/null; then
-            exec x-terminal-emulator -e "$HERE/usr/bin/game"
-          else
-            exec xterm -e "$HERE/usr/bin/game"
-          fi
+
+          # Robust terminal detection
+          for term in x-terminal-emulator gnome-terminal konsole xterm; do
+            if command -v "$term" >/dev/null 2>&1; then
+              exec "$term" -e "$HERE/usr/bin/game"
+            fi
+          done
+
+          echo "No supported terminal found."
+          exit 1
           EOF
 
           chmod +x AppDir/AppRun
@@ -128,7 +141,9 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
           ./appimagetool-x86_64.AppImage AppDir ASTEROID-SHOOTER.AppImage
 
-      # ---------------- Upload exactly ONE file ----------------
+      # -------------------------------------------------
+      # Upload exactly ONE artifact per OS
+      # -------------------------------------------------
       - if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
