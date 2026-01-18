@@ -117,6 +117,7 @@ jobs:
       - if: runner.os == 'Linux'
         name: Build Linux AppImage
         run: |
+          run: sudo apt-get update && sudo apt-get install -y libfuse2
           mkdir -p AppDir/usr/bin
           cp dist/game AppDir/usr/bin/game
 
