@@ -139,7 +139,7 @@ jobs:
 
           # Use official Docker AppImage tool to build
           # Download AppImageTool and make it executable
-          wget https://github.com/AppImage/AppImageKit/releases/download/15/appimagetool-x86_64.AppImage
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           
           # Build the AppImage directly
