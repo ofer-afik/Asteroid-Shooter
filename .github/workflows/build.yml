@@ -138,7 +138,12 @@ jobs:
           chmod +x AppDir/AppRun
 
           # Use official Docker AppImage tool to build
-          docker run --rm -v $PWD:/work -w /work appimagecrafters/appimagetool:latest ./AppDir ASTEROID-SHOOTER.AppImage                        # -------------------------------------------------
+          # Download AppImageTool and make it executable
+          wget https://github.com/AppImage/AppImageKit/releases/latest/download/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          
+          # Build the AppImage directly
+          ./appimagetool-x86_64.AppImage ./AppDir ASTEROID-SHOOTER.AppImage
       # Upload exactly ONE artifact per OS
       # -------------------------------------------------
       - if: runner.os == 'macOS'
