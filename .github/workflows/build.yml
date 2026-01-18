@@ -21,11 +21,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      # ---------------- Dependencies ----------------
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6
-
+          sudo apt-get install -y \
+            libncurses6 libncursesw6 libtinfo6 \
+            fuse xterm
 
       - if: runner.os == 'Windows'
         run: python -m pip install windows-curses
@@ -34,16 +36,113 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-      - if: runner.os != 'Windows'
+      # ---------------- Build game binary ----------------
+      - name: Build game
         run: |
-          pyinstaller --onefile --name ASTEROID-SHOOTER --hidden-import=curses --hidden-import=_curses --log-level=DEBUG code/game.py
+          pyinstaller --onefile --name game \
+            --hidden-import=curses \
+            --hidden-import=_curses \
+            code/game.py
 
+      # ==================================================
+      # macOS: .app wrapper
+      # ==================================================
+      - if: runner.os == 'macOS'
+        name: Build macOS app
+        run: |
+          APP=ASTEROID-SHOOTER.app
+          mkdir -p $APP/Contents/MacOS
+
+          cp dist/game $APP/Contents/MacOS/game
+
+          cat > $APP/Contents/MacOS/launcher << 'EOF'
+          #!/bin/bash
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          exec open -a Terminal "$DIR/game"
+          EOF
+
+          chmod +x $APP/Contents/MacOS/*
+
+          cat > $APP/Contents/Info.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+           "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>launcher</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.example.asteroidshooter</string>
+            <key>CFBundleName</key>
+            <string>ASTEROID-SHOOTER</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+          </dict>
+          </plist>
+          EOF
+
+      # ==================================================
+      # Windows: single EXE launcher with embedded game
+      # ==================================================
       - if: runner.os == 'Windows'
+        name: Build Windows launcher
         shell: pwsh
         run: |
-          pyinstaller --onefile --name ASTEROID-SHOOTER --hidden-import=curses --hidden-import=_curses --log-level=DEBUG code/game.py
+          @"
+          import subprocess, sys, os
 
-      - uses: actions/upload-artifact@v4
+          base = os.path.dirname(sys.executable)
+          game = os.path.join(base, "game.exe")
+
+          subprocess.Popen(["cmd", "/k", game])
+          "@ | Out-File launcher.py -Encoding utf8
+
+          pyinstaller --onefile --name ASTEROID-SHOOTER `
+            --add-binary "dist/game.exe;." `
+            launcher.py
+
+      # ==================================================
+      # Linux: AppImage
+      # ==================================================
+      - if: runner.os == 'Linux'
+        name: Build Linux AppImage
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp dist/game AppDir/usr/bin/game
+
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "$0")")"
+          if command -v x-terminal-emulator >/dev/null; then
+            exec x-terminal-emulator -e "$HERE/usr/bin/game"
+          else
+            exec xterm -e "$HERE/usr/bin/game"
+          fi
+          EOF
+
+          chmod +x AppDir/AppRun
+
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage AppDir ASTEROID-SHOOTER.AppImage
+
+      # ---------------- Upload exactly ONE file ----------------
+      - if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
         with:
-          name: ASTEROID-SHOOTER-${{ matrix.os }}
-          path: dist/ASTEROID-SHOOTER${{ runner.os == 'Windows' && '.exe' || '' }}
+          name: ASTEROID-SHOOTER-macOS
+          path: ASTEROID-SHOOTER.app
+
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASTEROID-SHOOTER-Windows
+          path: dist/ASTEROID-SHOOTER.exe
+
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASTEROID-SHOOTER-Linux
+          path: ASTEROID-SHOOTER.AppImage
