@@ -33,7 +33,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6 xterm
+          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6 xterm docker.io
 
       - if: runner.os == 'Windows'
         run: python -m pip install windows-curses
@@ -62,7 +62,7 @@ jobs:
 
           cp dist/game "$APP/Contents/MacOS/game"
 
-          # Launcher keeps terminal open after game exits
+          # Launcher keeps Terminal open
           cat > "$APP/Contents/MacOS/launcher" << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -112,7 +112,7 @@ jobs:
           pyinstaller --onefile --name ASTEROID-SHOOTER --add-binary "dist/game.exe;." launcher.py
 
       # =================================================
-      # Linux: AppImage with robust terminal detection
+      # Linux: AppImage using Docker (no FUSE required)
       # =================================================
       - if: runner.os == 'Linux'
         name: Build Linux AppImage
@@ -137,9 +137,8 @@ jobs:
 
           chmod +x AppDir/AppRun
 
-          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-          ./appimagetool-x86_64.AppImage AppDir ASTEROID-SHOOTER.AppImage
+          # Use official Docker AppImage tool to build
+          docker run --rm -v $PWD:/work -w /work appimage/appimagetool-x86_64:continuous ./AppDir ASTEROID-SHOOTER.AppImage
 
       # -------------------------------------------------
       # Upload exactly ONE artifact per OS
