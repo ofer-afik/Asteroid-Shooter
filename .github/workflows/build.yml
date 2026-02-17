@@ -33,7 +33,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6 xterm
+          sudo apt-get install -y libncurses6 libncursesw6 libtinfo6 xterm libfuse2
 
       - if: runner.os == 'Windows'
         run: python -m pip install windows-curses
@@ -46,13 +46,20 @@ jobs:
           pip install pyinstaller
 
       # -------------------------------------------------
-      # Build game binary (single-line, cross-OS)
+      # Build game binary
       # -------------------------------------------------
       - name: Build game binary
-        run: pyinstaller --onefile --name game --hidden-import=curses --hidden-import=_curses code/game.py
+        run: |
+          pyinstaller \
+            --onefile \
+            --target-architecture universal2 \
+            --name game \
+            --hidden-import=curses \
+            --hidden-import=_curses \
+            code/game.py
 
       # =================================================
-      # macOS: create clickable .app
+      # macOS: create clickable .app + proper zip
       # =================================================
       - if: runner.os == 'macOS'
         name: Build macOS app
@@ -62,7 +69,7 @@ jobs:
 
           cp dist/game "$APP/Contents/MacOS/game"
 
-          # Launcher keeps Terminal open
+          # Launcher (opens Terminal and keeps it open)
           cat > "$APP/Contents/MacOS/launcher" << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -71,7 +78,7 @@ jobs:
 
           chmod +x "$APP/Contents/MacOS/"*
 
-          # Minimal Info.plist
+          # Info.plist
           cat > "$APP/Contents/Info.plist" << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -92,8 +99,11 @@ jobs:
           </plist>
           EOF
 
+          # Proper macOS zip (preserves permissions & metadata)
+          ditto -c -k --keepParent "$APP" ASTEROID-SHOOTER-macOS.zip
+
       # =================================================
-      # Windows: single EXE launcher with embedded game
+      # Windows build
       # =================================================
       - if: runner.os == 'Windows'
         name: Build Windows launcher
@@ -101,23 +111,19 @@ jobs:
         run: |
           @"
           import subprocess, sys, os
-
-          # Correct path to embedded binary in --onefile mode
           base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
           game = os.path.join(base, "game.exe")
-
           subprocess.Popen(["cmd", "/k", game])
           "@ | Out-File launcher.py -Encoding utf8
 
           pyinstaller --onefile --name ASTEROID-SHOOTER --add-binary "dist/game.exe;." launcher.py
 
       # =================================================
-      # Linux: AppImage using Docker (no FUSE required)
+      # Linux: AppImage
       # =================================================
       - if: runner.os == 'Linux'
         name: Build Linux AppImage
         run: |
-          run: sudo apt-get update && sudo apt-get install -y libfuse2
           mkdir -p AppDir/usr/bin
           cp dist/game AppDir/usr/bin/game
 
@@ -125,7 +131,6 @@ jobs:
           #!/bin/bash
           HERE="$(dirname "$(readlink -f "$0")")"
 
-          # Robust terminal detection
           for term in x-terminal-emulator gnome-terminal konsole xterm; do
             if command -v "$term" >/dev/null 2>&1; then
               exec "$term" -e "$HERE/usr/bin/game"
@@ -138,20 +143,19 @@ jobs:
 
           chmod +x AppDir/AppRun
 
-          # Use official Docker AppImage tool to build
-          # Download AppImageTool and make it executable
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
-          
-          # Build the AppImage directly
+
           ./appimagetool-x86_64.AppImage ./AppDir ASTEROID-SHOOTER.AppImage
-      # Upload exactly ONE artifact per OS
+
+      # -------------------------------------------------
+      # Upload artifacts
       # -------------------------------------------------
       - if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: ASTEROID-SHOOTER-macOS
-          path: ASTEROID-SHOOTER.app
+          path: ASTEROID-SHOOTER-macOS.zip
 
       - if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
