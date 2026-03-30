@@ -219,7 +219,7 @@ def main(stdscr):
         players.append(Player("Player 1", 0, 20, ord('a'), ord('d'), ord('w')))
         players.append(Player("Player 2", 0, 40, ord('j'), ord('l'), ord('i')))
     else:
-        players.append(Player("Player 1", 0, COLS // 2, ord('a'), ord('d'), ord('w')))
+        players.append(Player("Player 1", 0, 35, ord('a'), ord('d'), ord('w')))
 
     gameWin = curses.newwin(30, 70, (LINES - 30) // 2, (COLS - 70) // 2)
     gameWin.border()
