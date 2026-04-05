@@ -2,6 +2,19 @@
 import time
 import sys
 import random
+import os
+import subprocess
+
+# Check if running in a terminal; if not, relaunch in one
+if not sys.stdout.isatty() and 'DISPLAY' in os.environ:
+    terminals = ['x-terminal-emulator', 'gnome-terminal', 'konsole', 'xfce4-terminal', 'xterm']
+    for term in terminals:
+        try:
+            subprocess.run([term, '-e', sys.executable] + sys.argv, check=True)
+            sys.exit(0)
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass
+    # If no terminal found, continue anyway (may fail)
 
 # Attempt to import curses module with error handling
 try:
