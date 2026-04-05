@@ -8,15 +8,15 @@ import subprocess
 # Check if running in a terminal; if not, relaunch in one
 if not sys.stdout.isatty() and 'DISPLAY' in os.environ:
     terminals = [
-        ('x-terminal-emulator', ['-e']),
-        ('gnome-terminal', ['--geometry=80x30', '--', 'bash', '-c']),
-        ('konsole', ['--geometry', '80x30', '-e']),
-        ('xfce4-terminal', ['--geometry=80x30', '-e']),
-        ('xterm', ['-geometry', '80x30', '-e']),
+        ('x-terminal-emulator', lambda: ['-e', sys.executable] + sys.argv[1:]),
+        ('gnome-terminal', lambda: ['--geometry=80x30', '--', 'bash', '-c', f'{sys.executable} {" ".join(sys.argv[1:])}']),
+        ('konsole', lambda: ['--geometry', '80x30', '-e', sys.executable] + sys.argv[1:]),
+        ('xfce4-terminal', lambda: ['--geometry=80x30', '-e', sys.executable] + sys.argv[1:]),
+        ('xterm', lambda: ['-geometry', '80x30', '-e', sys.executable] + sys.argv[1:]),
     ]
-    for term, args in terminals:
+    for term, cmd_func in terminals:
         try:
-            cmd = [term] + args + [sys.executable] + sys.argv
+            cmd = [term] + cmd_func()
             subprocess.run(cmd, check=True)
             sys.exit(0)
         except (FileNotFoundError, subprocess.CalledProcessError):
