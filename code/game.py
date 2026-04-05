@@ -7,10 +7,17 @@ import subprocess
 
 # Check if running in a terminal; if not, relaunch in one
 if not sys.stdout.isatty() and 'DISPLAY' in os.environ:
-    terminals = ['x-terminal-emulator', 'gnome-terminal', 'konsole', 'xfce4-terminal', 'xterm']
-    for term in terminals:
+    terminals = [
+        ('x-terminal-emulator', ['-e']),
+        ('gnome-terminal', ['--geometry=80x30', '--', 'bash', '-c']),
+        ('konsole', ['--geometry', '80x30', '-e']),
+        ('xfce4-terminal', ['--geometry=80x30', '-e']),
+        ('xterm', ['-geometry', '80x30', '-e']),
+    ]
+    for term, args in terminals:
         try:
-            subprocess.run([term, '-e', sys.executable] + sys.argv, check=True)
+            cmd = [term] + args + [sys.executable] + sys.argv
+            subprocess.run(cmd, check=True)
             sys.exit(0)
         except (FileNotFoundError, subprocess.CalledProcessError):
             pass
