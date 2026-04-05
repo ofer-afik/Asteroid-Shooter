@@ -202,7 +202,7 @@ def main(stdscr):
     LINES, COLS = stdscr.getmaxyx()
 
     # Ensure terminal size is sufficient
-    if COLS < 120 or LINES < 30:
+    if COLS < 70 or LINES < 30:
         stdscr.addstr(0, 0, "Error: Terminal window too small. Click any key to end.")
         stdscr.refresh()
         stdscr.getch()
