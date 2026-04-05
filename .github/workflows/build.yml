@@ -1,47 +1,158 @@
-name: Build Game Executables
+name: Build Asteroid Shooter
 
 on:
   push:
-    tags:
-      - 'v*'   # Triggers when you push a tag like v1.0, v1.0.1, etc.
+    branches:
+      - '**'
+  workflow_dispatch:
 
 jobs:
-  build:
-    # Run the same job on three different operating systems
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            output_name: asteroid-shooter-linux
-          - os: windows-latest
-            output_name: asteroid-shooter-windows.exe
-          - os: macos-latest
-            output_name: asteroid-shooter-mac
-
-    runs-on: ${{ matrix.os }}
-
+  build-linux:
+    name: Build Linux AppImage
+    runs-on: ubuntu-latest
     steps:
-      - name: Download your code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+      - name: Build Linux executable
+        run: |
+          python -m PyInstaller --onefile code/game.py --name AsteroidShooter
+      - name: Package AppImage
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp dist/AsteroidShooter AppDir/usr/bin/
+          chmod +x AppDir/usr/bin/AsteroidShooter
 
-      - name: Install PyInstaller
-        run: pip install pyinstaller
+          cat > AppDir/AppRun <<'APPRUN'
+          #!/bin/sh
+          BASEDIR="$(dirname "$(readlink -f "$0")")"
+          APPBIN="$BASEDIR/usr/bin/AsteroidShooter"
+          if [ ! -x "$APPBIN" ]; then
+            echo "Executable not found: $APPBIN"
+            exit 1
+          fi
+          if command -v x-terminal-emulator >/dev/null 2>&1; then
+            exec x-terminal-emulator -e "$APPBIN"
+          elif command -v gnome-terminal >/dev/null 2>&1; then
+            exec gnome-terminal -- "$APPBIN"
+          elif command -v konsole >/dev/null 2>&1; then
+            exec konsole -e "$APPBIN"
+          elif command -v xfce4-terminal >/dev/null 2>&1; then
+            exec xfce4-terminal -e "$APPBIN"
+          elif command -v xterm >/dev/null 2>&1; then
+            exec xterm -e "$APPBIN"
+          else
+            exec "$APPBIN"
+          fi
+          APRUN
+          chmod +x AppDir/AppRun
 
-      - name: Install windows-curses (Windows only)
-        if: runner.os == 'Windows'
-        run: pip install windows-curses
+          cat > AppDir/asteroid-shooter.desktop <<'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Asteroid Shooter
+          Exec=AsteroidShooter
+          Terminal=true
+          Categories=Game;
+          DESKTOP
 
-      - name: Build the executable
-        run: pyinstaller --onefile --name ${{ matrix.output_name }} code/game.py
-        shell: bash
-
-      - name: Upload the result
+          curl -L -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool.AppImage
+          ./appimagetool.AppImage AppDir AsteroidShooter-x86_64.AppImage
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.output_name }}
-          path: dist/${{ matrix.output_name }}
+          name: linux-appimage
+          path: AsteroidShooter-x86_64.AppImage
+
+  build-macos:
+    name: Build macOS .app bundle
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+      - name: Build macOS executable
+        run: |
+          python -m PyInstaller --onefile code/game.py --name AsteroidShooter
+      - name: Create .app bundle
+        run: |
+          mkdir -p AsteroidShooter.app/Contents/MacOS
+          mkdir -p AsteroidShooter.app/Contents/Resources
+          cp dist/AsteroidShooter AsteroidShooter.app/Contents/Resources/AsteroidShooter
+          cat > AsteroidShooter.app/Contents/MacOS/AsteroidShooter <<'APPWRAP'
+          #!/bin/bash
+          BUNDLE_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
+          osascript <<'APPLESCRIPT'
+          tell application "Terminal"
+            activate
+            do script "cd \"$BUNDLE_DIR\" && ./AsteroidShooter"
+          end tell
+          APPLESCRIPT
+          APPWRAP
+          chmod +x AsteroidShooter.app/Contents/MacOS/AsteroidShooter
+          cat > AsteroidShooter.app/Contents/Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>Asteroid Shooter</string>
+            <key>CFBundleDisplayName</key>
+            <string>Asteroid Shooter</string>
+            <key>CFBundleExecutable</key>
+            <string>AsteroidShooter</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.github.asteroidshooter</string>
+            <key>CFBundleVersion</key>
+            <string>1.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+          </dict>
+          </plist>
+          PLIST
+          echo "APPL????" > AsteroidShooter.app/Contents/PkgInfo
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: |
+            AsteroidShooter.app
+            dist/AsteroidShooter
+
+  build-windows:
+    name: Build Windows executable
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller windows-curses
+      - name: Build Windows executable
+        run: |
+          python -m PyInstaller --onefile code/game.py --name AsteroidShooter
+      - name: Create Windows launcher
+        run: |
+          echo @echo off > run-asteroid-shooter.cmd
+          echo "%~dp0AsteroidShooter.exe" >> run-asteroid-shooter.cmd
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: |
+            dist/AsteroidShooter.exe
+            run-asteroid-shooter.cmd
