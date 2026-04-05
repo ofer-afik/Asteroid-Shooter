@@ -49,7 +49,7 @@ jobs:
           else
             exec "$APPBIN"
           fi
-          APRUN
+          APPRUN
           chmod +x AppDir/AppRun
 
           cat > AppDir/asteroid-shooter.desktop <<'DESKTOP'
