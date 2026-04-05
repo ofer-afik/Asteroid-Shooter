@@ -22,62 +22,38 @@ jobs:
       - name: Build Linux executable
         run: |
           python -m PyInstaller --onefile code/game.py --name AsteroidShooter
-      - name: Package AppImage
+      - name: Package Linux executable
         run: |
-          mkdir -p AppDir/usr/bin
-          cp dist/AsteroidShooter AppDir/usr/bin/
-          chmod +x AppDir/usr/bin/AsteroidShooter
-
-          cat > AppDir/AppRun <<'APPRUN'
-          #!/bin/sh
-          BASEDIR="$(dirname "$(readlink -f "$0")")"
-          APPBIN="$BASEDIR/usr/bin/AsteroidShooter"
-          if [ ! -x "$APPBIN" ]; then
-            echo "Executable not found: $APPBIN"
-            exit 1
-          fi
+          cat > run-asteroid-shooter.sh <<'EOF'
+          #!/bin/bash
+          DIR="$(mktemp -d)"
+          BINARY="$DIR/AsteroidShooter"
+          tail -n +$(grep -n '^# BINARY START' "$0" | cut -d: -f1) "$0" | base64 -d > "$BINARY"
+          chmod +x "$BINARY"
           if command -v x-terminal-emulator >/dev/null 2>&1; then
-            exec x-terminal-emulator -e "$APPBIN"
+              exec x-terminal-emulator -e "$BINARY"
           elif command -v gnome-terminal >/dev/null 2>&1; then
-            exec gnome-terminal -- "$APPBIN"
+              exec gnome-terminal -- "$BINARY"
           elif command -v konsole >/dev/null 2>&1; then
-            exec konsole -e "$APPBIN"
+              exec konsole -e "$BINARY"
           elif command -v xfce4-terminal >/dev/null 2>&1; then
-            exec xfce4-terminal -e "$APPBIN"
+              exec xfce4-terminal -e "$BINARY"
           elif command -v xterm >/dev/null 2>&1; then
-            exec xterm -e "$APPBIN"
+              exec xterm -e "$BINARY"
           else
-            exec "$APPBIN"
+              exec "$BINARY"
           fi
-          APPRUN
-          chmod +x AppDir/AppRun
-
-          cat > AppDir/asteroid-shooter.desktop <<'DESKTOP'
-          [Desktop Entry]
-          Type=Application
-          Name=Asteroid Shooter
-          Exec=AsteroidShooter
-          Icon=asteroid-shooter
-          Terminal=true
-          Categories=Game;
-          DESKTOP
-
-          # Create a dummy icon
-          python - <<'PY'
-          import base64, pathlib
-          icon_data = b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=='
-          pathlib.Path('AppDir/asteroid-shooter.png').write_bytes(base64.b64decode(icon_data))
-          PY
-
-          curl -L -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool.AppImage
-          ./appimagetool.AppImage --appimage-extract
-          ./squashfs-root/AppRun AppDir AsteroidShooter-x86_64.AppImage
+          rm -rf "$DIR"
+          exit
+          # BINARY START
+          EOF
+          base64 dist/AsteroidShooter >> run-asteroid-shooter.sh
+          chmod +x run-asteroid-shooter.sh
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-appimage
-          path: AsteroidShooter-x86_64.AppImage
+          name: linux-executable
+          path: run-asteroid-shooter.sh
 
   build-macos:
     name: Build macOS .app bundle
@@ -136,8 +112,7 @@ jobs:
         with:
           name: macos-app
           path: |
-            AsteroidShooter.app
-            dist/AsteroidShooter
+            AsteroidShooter.app/
 
   build-windows:
     name: Build Windows executable
