@@ -17,6 +17,8 @@ jobs:
           python-version: '3.11'
       - name: Install build tools
         run: |
+          sudo apt-get update
+          sudo apt-get install -y appimagetool
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
       - name: Build Linux executable
@@ -61,9 +63,7 @@ jobs:
           Categories=Game;
           DESKTOP
 
-          curl -L -o appimagetool.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool.AppImage
-          ./appimagetool.AppImage AppDir AsteroidShooter-x86_64.AppImage
+          appimagetool AppDir AsteroidShooter-x86_64.AppImage
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
