@@ -4,12 +4,13 @@ import sys
 import random
 import os
 import subprocess
+import shlex
 
 # Check if running in a terminal; if not, relaunch in one
 if not sys.stdout.isatty() and 'DISPLAY' in os.environ:
     terminals = [
         ('x-terminal-emulator', lambda: ['-e', sys.executable] + sys.argv[1:]),
-        ('gnome-terminal', lambda: ['--geometry=80x30', '--', 'bash', '-c', f'{sys.executable} {" ".join(sys.argv[1:])}']),
+        ('gnome-terminal', lambda: ['--geometry=80x30', '--', 'bash', '-c', f'{shlex.quote(sys.executable)} {" ".join(shlex.quote(arg) for arg in sys.argv[1:])}']),
         ('konsole', lambda: ['--geometry', '80x30', '-e', sys.executable] + sys.argv[1:]),
         ('xfce4-terminal', lambda: ['--geometry=80x30', '-e', sys.executable] + sys.argv[1:]),
         ('xterm', lambda: ['-geometry', '80x30', '-e', sys.executable] + sys.argv[1:]),
